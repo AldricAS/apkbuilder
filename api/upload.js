@@ -5,6 +5,8 @@ export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
 const BRANCH = 'builds';
 const NAME_RE = /^[A-Za-z0-9 _-]{1,40}$/;
 const PKG_RE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
+const COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+const MAX_LOGO_B64 = 600_000; // sekitar 450 KB, logo sudah diperkecil di browser
 const SAFE_URL_RE = /^https:\/\/[^\s'"`$\\<>|;&(){}]+$/;
 
 async function ensureBranch() {
@@ -31,7 +33,7 @@ export default async function handler(req, res) {
   if (!process.env.GH_REPO || !process.env.GH_TOKEN)
     return res.status(500).json({ error: 'GH_REPO / GH_TOKEN belum diisi di Vercel.' });
 
-  const { contentBase64, type, url, appName, appId } = req.body || {};
+  const { contentBase64, type, url, appName, appId, logoBase64, themeColor } = req.body || {};
 
   if (!['android', 'web', 'link'].includes(type))
     return res.status(400).json({ error: 'Tipe proyek tidak valid.' });
@@ -51,17 +53,41 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'File harus berupa .zip.' });
   }
 
+  // logo dan tema hanya untuk mode web dan link (proyek Android sudah punya ikon sendiri)
+  let theme = '';
+  let logo = '';
+  if (type !== 'android') {
+    if (themeColor) {
+      if (!COLOR_RE.test(String(themeColor))) return res.status(400).json({ error: 'Warna tema tidak valid.' });
+      theme = String(themeColor).toUpperCase();
+    }
+    if (logoBase64) {
+      // "iVBORw0KGgo" = tanda awal file PNG
+      if (typeof logoBase64 !== 'string' || !logoBase64.startsWith('iVBOR') || logoBase64.length > MAX_LOGO_B64)
+        return res.status(400).json({ error: 'Logo harus PNG dan tidak terlalu besar.' });
+      logo = logoBase64;
+    }
+  }
+
   try {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const meta = { type, url: siteUrl, appName: appName || 'App', appId: appId || 'com.example.app' };
+    const meta = {
+      type,
+      url: siteUrl,
+      appName: appName || 'App',
+      appId: appId || 'com.example.app',
+      themeColor: theme,
+      hasLogo: !!logo,
+    };
 
     await ensureBranch();
-    // zip dulu (kalau ada), json terakhir: workflow jalan saat json masuk
+    // zip dan logo dulu (kalau ada), json terakhir: workflow jalan saat json masuk
     if (type !== 'link') await putFile(`uploads/${id}.zip`, contentBase64, `zip ${id}`);
+    if (logo) await putFile(`uploads/${id}.png`, logo, `logo ${id}`);
     await putFile(`uploads/${id}.json`, Buffer.from(JSON.stringify(meta)).toString('base64'), `upload ${id}`);
 
     res.json({ ok: true, id });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-      }
+}
