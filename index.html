@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APKForge: zip atau link web masuk, APK keluar</title>
+<meta name="theme-color" content="#F1ECFF">
+<meta name="author" content="aldx">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1ECFF;        /* lilac pucat */
+  --paper:#FFFFFF;
+  --ink:#1D1340;       /* indigo tua, pengganti hitam */
+  --dim:#5A4F85;
+  --pink:#FF4F8B;
+  --sun:#FFC83D;
+  --mint:#2ED3A0;
+  --bad:#C62828;
+  --warn:#B3125A;
+  --bd:2.5px solid var(--ink);
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg)}
+body{
+  min-height:100vh;color:var(--ink);font:400 1rem/1.55 var(--body);
+  background:radial-gradient(circle,rgba(29,19,64,.17) 1.4px,transparent 1.7px) 0 0/22px 22px,var(--bg);
+  padding:clamp(1rem,3vw,2.5rem);
+}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+.wrap{max-width:1120px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-bottom:1.2rem}
+.mark{
+  font:800 1.3rem/1 var(--display);letter-spacing:-.01em;padding:.45rem .8rem;
+  background:var(--pink);border:var(--bd);border-radius:10px;box-shadow:3px 3px 0 var(--ink);transform:rotate(-2deg);
+}
+header span{color:var(--dim);font-size:.9rem}
+
+main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(1.5rem,5vw,4rem);padding-top:clamp(1.5rem,5vw,3.5rem)}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+
+h1{font:800 clamp(2.6rem,7.2vw,5.6rem)/.92 var(--display);letter-spacing:-.035em;font-variation-settings:"opsz" 96;max-width:11ch}
+.lead{margin-top:1.25rem;color:var(--dim);max-width:46ch}
+
+/* ---------- form ---------- */
+form{margin-top:2rem;display:grid;gap:1.2rem}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{
+  padding:.8rem 1rem;cursor:pointer;display:grid;gap:.1rem;background:var(--paper);
+  border:var(--bd);border-radius:14px;box-shadow:4px 4px 0 var(--ink);transition:transform .08s,box-shadow .08s;
+}
+.seg b{font:600 1rem var(--body)}
+.seg small{color:var(--dim);font-size:.82rem}
+.seg input:checked + label{background:var(--pink);transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.seg input:checked + label small{color:var(--ink)}
+.seg input:focus-visible + label{outline:3px solid var(--ink);outline-offset:3px}
+@media (max-width:560px){.seg{grid-template-columns:1fr}}
+
+.drop{
+  position:relative;display:grid;place-items:center;gap:.5rem;text-align:center;
+  min-height:200px;padding:1.5rem;cursor:pointer;background:var(--paper);
+  border:2.5px dashed var(--ink);border-radius:20px;transition:background .15s;
+}
+.drop:hover,.drop.over{background:#FFF4CC}
+.drop:focus-within{outline:3px solid var(--ink);outline-offset:3px}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop svg{width:28px;height:28px;padding:12px;box-sizing:content-box;stroke:var(--ink);background:var(--sun);border:var(--bd);border-radius:50%}
+.drop strong{font:600 1.1rem var(--body)}
+.drop small{color:var(--dim)}
+.picked{font:600 1.1rem var(--body)}
+
+.fields{display:none;grid-template-columns:1fr 1fr;gap:.8rem}
+.fields.show{display:grid}
+@media (max-width:520px){.fields.show{grid-template-columns:1fr}}
+.f{display:grid;gap:.35rem}
+.f span{font-size:.88rem;color:var(--dim);font-weight:500}
+.f input{
+  width:100%;padding:.75rem .9rem;color:var(--ink);background:var(--paper);
+  border:var(--bd);border-radius:10px;font:400 1rem var(--body);
+}
+.f input::placeholder{color:rgba(90,79,133,.6)}
+.hint{color:var(--dim);font-size:.85rem}
+.drop[hidden],.f[hidden]{display:none}
+
+.go{
+  justify-self:start;padding:.95rem 1.7rem;cursor:pointer;
+  background:var(--pink);color:var(--ink);font:800 1.1rem var(--display);letter-spacing:-.005em;
+  border:var(--bd);border-radius:14px;box-shadow:5px 5px 0 var(--ink);transition:transform .08s,box-shadow .08s;
+}
+.go:hover{transform:translate(-1px,-1px);box-shadow:7px 7px 0 var(--ink)}
+.go:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--ink)}
+.go:disabled{background:#D9D2F2;color:var(--dim);cursor:not-allowed;transform:none;box-shadow:3px 3px 0 var(--dim);border-color:var(--dim)}
+
+#msg{min-height:1.5rem;font-size:.95rem;font-weight:500}
+#msg.err{color:var(--bad)}
+#msg a{color:var(--warn)}
+
+/* ---------- jalur build ---------- */
+aside{
+  align-self:start;background:var(--paper);border:var(--bd);border-radius:22px;
+  box-shadow:8px 8px 0 var(--ink);padding:clamp(1.2rem,3vw,2rem);
+}
+aside h2{font:800 1.6rem/1 var(--display);letter-spacing:-.02em}
+aside > p{color:var(--dim);font-size:.9rem;margin:.4rem 0 1.6rem}
+ol{list-style:none;padding:0;position:relative;display:grid;gap:0}
+ol::before{content:"";position:absolute;left:14px;top:16px;bottom:16px;width:2.5px;background:rgba(29,19,64,.2)}
+.st{position:relative;display:grid;grid-template-columns:30px 1fr;gap:1rem;padding:.7rem 0}
+.dot{
+  position:relative;z-index:1;width:30px;height:30px;border-radius:50%;
+  background:var(--paper);border:var(--bd);display:grid;place-items:center;transition:background .25s;
+}
+.dot svg{width:14px;height:14px;stroke:var(--ink);stroke-width:3;fill:none;opacity:0}
+.st b{display:block;font:600 1.02rem var(--body);color:var(--dim);transition:color .25s}
+.st small{color:var(--dim);opacity:.85;font-size:.86rem}
+.st[data-s="active"] .dot{background:var(--sun);animation:pulse 1.4s ease-in-out infinite}
+.st[data-s="active"] b{color:var(--ink)}
+.st[data-s="done"] .dot{background:var(--mint)}
+.st[data-s="done"] .dot svg{opacity:1}
+.st[data-s="done"] b{color:var(--ink)}
+.st[data-s="error"] .dot{background:var(--bad);border-color:var(--bad)}
+.st[data-s="error"] b{color:var(--bad)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(29,19,64,.45)}50%{box-shadow:0 0 0 9px rgba(29,19,64,0)}}
+
+.dl{
+  display:none;margin-top:1.2rem;padding:1rem 1.2rem;background:var(--mint);color:var(--ink);text-decoration:none;
+  font:800 1.15rem var(--display);border:var(--bd);border-radius:14px;box-shadow:4px 4px 0 var(--ink);
+}
+.dl.show{display:block}
+.dl small{display:block;font:500 .85rem var(--body)}
+
+footer{
+  margin-top:3rem;padding-top:1rem;border-top:2.5px solid var(--ink);
+  display:flex;justify-content:space-between;gap:.5rem 2rem;flex-wrap:wrap;color:var(--dim);font-size:.85rem;
+}
+footer .copy{color:var(--ink);font-weight:600}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">APKForge</div>
+    <span>Dirakit di GitHub Actions</span>
+  </header>
+
+  <main>
+    <section>
+      <h1>Zip atau link web masuk, APK keluar.</h1>
+      <p class="lead">Kirim proyekmu sebagai zip, atau tempel link situs yang sudah online. Kami rakit jadi APK debug di GitHub, lalu kamu tinggal unduh dan instal.</p>
+
+      <form id="form" autocomplete="off">
+        <div class="seg" role="radiogroup" aria-label="Jenis proyek">
+          <input type="radio" name="type" id="t-android" value="android" checked>
+          <label for="t-android"><b>Proyek Android</b><small>Android Studio, ada gradlew</small></label>
+          <input type="radio" name="type" id="t-web" value="web">
+          <label for="t-web"><b>Proyek web</b><small>HTML/JS, ada index.html</small></label>
+          <input type="radio" name="type" id="t-link" value="link">
+          <label for="t-link"><b>Link web</b><small>Situs online jadi APK</small></label>
+        </div>
+
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept=".zip,application/zip">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="square" aria-hidden="true">
+            <path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/>
+          </svg>
+          <strong id="dropTitle">Taruh file .zip di sini</strong>
+          <small id="dropSub">atau ketuk untuk memilih. Maksimal 3 MB</small>
+        </label>
+
+        <label class="f" id="linkField" hidden>
+          <span>Link situs</span>
+          <input id="url" type="url" inputmode="url" placeholder="https://situskamu.vercel.app" spellcheck="false" autocapitalize="none">
+          <small class="hint">Situs yang sudah online. Aplikasinya membuka situs ini di dalam app, jadi butuh internet dan perubahan di situsmu langsung ikut tampil.</small>
+        </label>
+
+        <div class="fields" id="webFields">
+          <label class="f"><span id="nameLbl">Nama aplikasi</span><input id="appName" placeholder="Toko Saya" maxlength="40"></label>
+          <label class="f"><span>Package id</span><input id="appId" placeholder="com.tokosaya.app" spellcheck="false" autocapitalize="none"></label>
+        </div>
+
+        <button class="go" id="go" type="submit">Build APK</button>
+        <p class="hint" id="limitNote">Batas 1 build per hari untuk setiap pengguna.</p>
+        <p id="msg" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <aside aria-label="Status build">
+      <h2>Jalur build</h2>
+      <p>Statusnya diperbarui otomatis, halaman boleh dibiarkan terbuka.</p>
+      <ol id="line">
+        <li class="st" data-s="pending"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><div><b>Mengirim zip</b><small>File dikirim ke repo GitHub</small></div></li>
+        <li class="st" data-s="pending"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><div><b>Mengantre</b><small>Menunggu runner GitHub bebas</small></div></li>
+        <li class="st" data-s="pending"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><div><b>Merakit APK</b><small>Gradle bekerja, biasanya 3 sampai 8 menit</small></div></li>
+        <li class="st" data-s="pending"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><div><b>APK siap</b><small>Tombol unduh muncul di bawah</small></div></li>
+      </ol>
+      <a class="dl" id="dl" href="#" rel="noopener">Unduh APK<small id="dlInfo"></small></a>
+    </aside>
+  </main>
+
+  <footer><span class="copy">Copyright © 2026 by aldx</span><span>APK yang dihasilkan adalah versi debug: bisa langsung diinstal, tapi belum bertanda tangan untuk Play Store.</span></footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const MAX = 3 * 1024 * 1024;
+const steps = [...document.querySelectorAll('#line .st')];
+let file = null, timer = null, busy = false;
+
+/* ---------- util ---------- */
+function say(text, kind = '', html = false){
+  const m = $('#msg'); m.className = kind;
+  html ? (m.innerHTML = text) : (m.textContent = text);
+}
+function setStage(n, failed = false){
+  steps.forEach((el, i) => {
+    el.dataset.s = i < n ? 'done' : i === n ? (failed ? 'error' : 'active') : 'pending';
+  });
+}
+const DAY_KEY = 'apkforge:day';
+const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, jam perangkat
+function usedToday(){ try { return localStorage.getItem(DAY_KEY) === today(); } catch { return false; } }
+function markUsed(){ try { localStorage.setItem(DAY_KEY, today()); } catch {} }
+function unlock(){
+  busy = false;
+  const lim = usedToday();
+  $('#go').disabled = lim;
+  const n = $('#limitNote');
+  n.textContent = lim ? 'Kamu sudah build hari ini. Coba lagi besok.' : 'Batas 1 build per hari untuk setiap pengguna.';
+  n.style.color = lim ? 'var(--warn)' : '';
+}
+function mb(b){ return (b / 1048576).toFixed(2) + ' MB'; }
+function toBase64(f){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = () => rej(new Error('Gagal membaca file'));
+    r.readAsDataURL(f);
+  });
+}
+
+/* ---------- pilih file ---------- */
+function pick(f){
+  if (!f) return;
+  if (!/\.zip$/i.test(f.name)) return say('File harus berformat .zip.', 'err');
+  if (f.size > MAX) return say(`Zip ${mb(f.size)} terlalu besar. Hapus folder build, .gradle, dan node_modules lalu zip ulang (maks 3 MB).`, 'err');
+  file = f; say('');
+  $('#dropTitle').textContent = f.name;
+  $('#dropTitle').className = 'picked';
+  $('#dropSub').textContent = mb(f.size) + ', ketuk untuk ganti';
+}
+$('#file').addEventListener('change', (e) => pick(e.target.files[0]));
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
+
+function mode(){ return $('#t-web').checked ? 'web' : $('#t-link').checked ? 'link' : 'android'; }
+function applyMode(){
+  const m = mode();
+  $('#drop').hidden = m === 'link';
+  $('#linkField').hidden = m !== 'link';
+  $('#webFields').classList.toggle('show', m !== 'android');
+  steps[0].querySelector('b').textContent = m === 'link' ? 'Mengirim link' : 'Mengirim zip';
+  steps[0].querySelector('small').textContent = m === 'link' ? 'Link dikirim ke repo GitHub' : 'File dikirim ke repo GitHub';
+  say('');
+}
+document.querySelectorAll('input[name=type]').forEach(r => r.addEventListener('change', applyMode));
+
+/* ---------- kirim ---------- */
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (busy) return;
+  if (usedToday()) return say('Kamu sudah build hari ini. Coba lagi besok.', 'err');
+  const type = mode();
+  if (type !== 'link' && !file) return say('Pilih file .zip dulu.', 'err');
+  if (type === 'link' && !/^https:\/\//i.test($('#url').value.trim()))
+    return say('Isi link yang diawali https://', 'err');
+  const nm = $('#appName').value.trim(), pk = $('#appId').value.trim();
+  if (type !== 'android' && (!nm || !pk))
+    return say('Isi nama aplikasi dan package id (contoh: com.tokosaya.app).', 'err');
+
+  busy = true; $('#go').disabled = true;
+  $('#dl').classList.remove('show');
+  clearInterval(timer);
+  setStage(0); say(type === 'link' ? 'Mengirim link ke GitHub...' : 'Mengirim zip ke GitHub...');
+
+  try {
+    const body = {
+      type,
+      contentBase64: type === 'link' ? undefined : await toBase64(file),
+      url: $('#url').value.trim(),
+      appName: $('#appName').value.trim(),
+      appId: $('#appId').value.trim(),
+    };
+    const r = await fetch('/api/upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Upload gagal.');
+    markUsed();
+    try { localStorage.setItem('apkforge:id', d.id); } catch {}
+    setStage(1); say('Terkirim. Build dimulai sebentar lagi.');
+    poll(d.id);
+  } catch (err) {
+    setStage(0, true); say(err.message, 'err');
+    unlock();
+  }
+});
+
+/* ---------- pantau status ---------- */
+function poll(id){
+  const started = Date.now();
+  const tick = async () => {
+    if (Date.now() - started > 40 * 60 * 1000){
+      clearInterval(timer); unlock();
+      return say('Build terlalu lama. Cek tab Actions di repo GitHub.', 'err');
+    }
+    try {
+      const d = await (await fetch('/api/status?id=' + encodeURIComponent(id), { cache: 'no-store' })).json();
+      if (d.state === 'queued'){ setStage(1); say('Menunggu runner GitHub...'); }
+      if (d.state === 'building'){ setStage(2); say('APK sedang dirakit...'); }
+      if (d.state === 'failed'){
+        clearInterval(timer); unlock();
+        setStage(2, true);
+        say(`Build gagal. <a href="${d.logUrl}" target="_blank" rel="noopener">Buka log di GitHub</a> untuk lihat penyebabnya, perbaiki proyek, lalu kirim ulang.`, 'err', true);
+      }
+      if (d.state === 'done'){
+        clearInterval(timer); unlock();
+        setStage(4); say('Selesai. APK siap diunduh.');
+        const a = $('#dl'); a.href = d.apk; a.classList.add('show');
+        $('#dlInfo').textContent = `${d.name}, ${mb(d.size)}`;
+      }
+    } catch { /* koneksi putus sebentar, coba lagi di tick berikutnya */ }
+  };
+  tick(); timer = setInterval(tick, 6000);
+}
+
+/* lanjutkan pemantauan kalau halaman dimuat ulang */
+try {
+  const last = localStorage.getItem('apkforge:id');
+  if (last){ busy = true; $('#go').disabled = true; setStage(1); say('Melanjutkan build terakhir...'); poll(last); }
+} catch {}
+if (!busy) unlock();
+</script>
+</body>
+</html>
