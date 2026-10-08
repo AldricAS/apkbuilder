@@ -29,6 +29,8 @@ jobs:
             echo "url=$(jq -r '.url' "$META")"
             echo "app_name=$(jq -r '.appName' "$META")"
             echo "app_id=$(jq -r '.appId' "$META")"
+            echo "theme=$(jq -r '.themeColor // ""' "$META")"
+            echo "has_logo=$(jq -r '.hasLogo // false' "$META")"
           } >> "$GITHUB_OUTPUT"
 
       - name: Ambil proyek dan deteksi jenisnya
@@ -81,10 +83,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/out"
           cp "$APK" "$GITHUB_WORKSPACE/out/app-$ID.apk"
 
-      - name: Build proyek web (Capacitor)
+      - name: Siapkan proyek web (Capacitor)
         if: steps.src.outputs.type == 'web'
         env:
-          ID: ${{ steps.prep.outputs.id }}
           ROOT: ${{ steps.src.outputs.root }}
           APP_NAME: ${{ steps.prep.outputs.app_name }}
           APP_ID: ${{ steps.prep.outputs.app_id }}
@@ -96,19 +97,10 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/$ROOT"/. www/
           npx cap init "$APP_NAME" "$APP_ID" --web-dir=www
           npx cap add android
-          npx cap sync android
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          APK=$(find . -name '*.apk' -path '*debug*' | head -1)
-          if [ -z "$APK" ]; then echo "::error::APK debug tidak ditemukan setelah build"; exit 1; fi
-          mkdir -p "$GITHUB_WORKSPACE/out"
-          cp "$APK" "$GITHUB_WORKSPACE/out/app-$ID.apk"
 
-      - name: Build dari link web (Capacitor)
+      - name: Siapkan proyek dari link web (Capacitor)
         if: steps.src.outputs.type == 'weblink'
         env:
-          ID: ${{ steps.prep.outputs.id }}
           APP_NAME: ${{ steps.prep.outputs.app_name }}
           APP_ID: ${{ steps.prep.outputs.app_id }}
           SITE_URL: ${{ steps.prep.outputs.url }}
@@ -121,6 +113,102 @@ jobs:
           jq -n --arg id "$APP_ID" --arg name "$APP_NAME" --arg url "$SITE_URL" \
             '{appId:$id, appName:$name, webDir:"www", server:{url:$url, cleartext:false}}' > capacitor.config.json
           npx cap add android
+
+      - name: Terapkan logo dan tema
+        if: (steps.src.outputs.type == 'web' || steps.src.outputs.type == 'weblink') && (steps.prep.outputs.theme != '' || steps.prep.outputs.has_logo == 'true')
+        env:
+          ID: ${{ steps.prep.outputs.id }}
+          THEME: ${{ steps.prep.outputs.theme }}
+          HAS_LOGO: ${{ steps.prep.outputs.has_logo }}
+        run: |
+          cd cap
+          cat > apply-look.cjs <<'JSEOF'
+          // Menerapkan logo dan warna tema ke proyek Capacitor (dijalankan dari folder cap/)
+          const fs = require('fs');
+          const THEME = process.env.THEME || '';
+          const LOGO = process.env.LOGO || '';
+          const clear = { r: 0, g: 0, b: 0, alpha: 0 };
+
+          function isLight(hex) {
+            const n = parseInt(hex.slice(1), 16);
+            const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
+          }
+
+          function patchConfig() {
+            if (fs.existsSync('capacitor.config.json')) {
+              const c = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
+              c.backgroundColor = THEME;
+              fs.writeFileSync('capacitor.config.json', JSON.stringify(c, null, 2));
+            } else if (fs.existsSync('capacitor.config.ts')) {
+              let t = fs.readFileSync('capacitor.config.ts', 'utf8');
+              t = t.replace(/(const config[^{]*\{)/, `$1\n  backgroundColor: '${THEME}',`);
+              fs.writeFileSync('capacitor.config.ts', t);
+            } else {
+              console.log('::warning::capacitor.config tidak ditemukan, warna latar webview dilewati');
+            }
+          }
+
+          function patchStyles() {
+            const f = 'android/app/src/main/res/values/styles.xml';
+            let s = fs.readFileSync(f, 'utf8');
+            const bars =
+              `\n        <item name="android:statusBarColor">${THEME}</item>` +
+              `\n        <item name="android:navigationBarColor">${THEME}</item>` +
+              `\n        <item name="android:windowLightStatusBar">${isLight(THEME)}</item>` +
+              `\n        <item name="android:windowLightNavigationBar">${isLight(THEME)}</item>`;
+            s = s.replace(/<style name="AppTheme\.NoActionBar"[^>]*>/, (m) => m + bars);
+            if (s.includes('Theme.SplashScreen')) {
+              s = s.replace(/<style name="AppTheme\.NoActionBarLaunch"[^>]*>/, (m) =>
+                m + `\n        <item name="windowSplashScreenBackground">${THEME}</item>`);
+            }
+            fs.writeFileSync(f, s);
+          }
+
+          async function makeAssets() {
+            const sharp = require('sharp');
+            const bg = THEME || '#FFFFFF';
+            fs.mkdirSync('assets', { recursive: true });
+
+            const logoAt = (size) =>
+              sharp(LOGO).resize(size, size, { fit: 'contain', background: clear }).png().toBuffer();
+            const onCanvas = async (canvas, color, logoSize, out) => {
+              const base = sharp({ create: { width: canvas, height: canvas, channels: 4, background: color } });
+              await base.composite([{ input: await logoAt(logoSize), gravity: 'center' }]).png().toFile(out);
+            };
+
+            // ikon adaptif: logo di area aman (sekitar 60%), latar polos dari warna tema
+            await onCanvas(1024, clear, 880, 'assets/icon-foreground.png');
+            await sharp({ create: { width: 1024, height: 1024, channels: 4, background: bg } })
+              .png().toFile('assets/icon-background.png');
+            await onCanvas(1024, bg, 720, 'assets/icon-only.png');
+            // splash screen: logo di tengah latar warna tema
+            await onCanvas(2732, bg, 720, 'assets/splash.png');
+            await onCanvas(2732, bg, 720, 'assets/splash-dark.png');
+          }
+
+          (async () => {
+            if (THEME) { patchConfig(); patchStyles(); }
+            if (LOGO) await makeAssets();
+          })().catch((e) => { console.error('::error::' + e.message); process.exit(1); });
+          JSEOF
+          export LOGO=""
+          if [ "$HAS_LOGO" = "true" ]; then
+            LOGO="$GITHUB_WORKSPACE/uploads/$ID.png"
+            [ -f "$LOGO" ] || { echo "::error::File logo tidak ditemukan"; exit 1; }
+            npm i sharp @capacitor/assets@3
+          fi
+          node apply-look.cjs
+          if [ -n "$LOGO" ]; then
+            npx capacitor-assets generate --android
+          fi
+
+      - name: Build APK Capacitor (Gradle)
+        if: steps.src.outputs.type == 'web' || steps.src.outputs.type == 'weblink'
+        env:
+          ID: ${{ steps.prep.outputs.id }}
+        run: |
+          cd cap
           npx cap sync android
           cd android
           chmod +x gradlew
@@ -145,9 +233,8 @@ jobs:
           if [ -n "$ID" ]; then
             git config user.name "apkforge-bot"
             git config user.email "apkforge-bot@users.noreply.github.com"
-            git rm -q --ignore-unmatch "uploads/$ID.zip" "uploads/$ID.json"
+            git rm -q --ignore-unmatch "uploads/$ID.zip" "uploads/$ID.png" "uploads/$ID.json"
             git commit -m "cleanup $ID" || true
             git pull --rebase origin builds || true
             git push origin builds || true
           fi
-          
