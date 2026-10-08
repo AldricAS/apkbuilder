@@ -89,6 +89,37 @@ form{margin-top:2rem;display:grid;gap:1.2rem}
 .hint{color:var(--dim);font-size:.85rem}
 .drop[hidden],.f[hidden]{display:none}
 
+/* ---------- logo & splash ---------- */
+.look{display:grid;gap:1rem;border:var(--bd);border-radius:18px;background:var(--paper);padding:1rem 1.1rem 1.2rem;min-width:0}
+.look[hidden]{display:none}
+.look legend{font:800 1.05rem var(--display);padding:0 .5rem;margin-left:-.3rem;background:var(--sun);border:var(--bd);border-radius:8px}
+.look legend em{font:500 .8rem var(--body);font-style:normal;color:var(--ink)}
+.look-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1.2rem;align-items:start}
+@media (max-width:520px){.look-grid{grid-template-columns:1fr}}
+.look-in{display:grid;gap:1rem;min-width:0}
+.logo-pick{position:relative;display:flex;align-items:center;gap:.8rem;cursor:pointer}
+.logo-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.lp-btn{padding:.6rem 1rem;background:var(--sun);border:var(--bd);border-radius:10px;box-shadow:3px 3px 0 var(--ink);font:600 .95rem var(--body);white-space:nowrap}
+.logo-pick:focus-within .lp-btn{outline:3px solid var(--ink);outline-offset:3px}
+.logo-pick small{color:var(--dim);font-size:.82rem;min-width:0;overflow-wrap:anywhere}
+.colorrow{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.colorrow input[type=color]{width:52px;height:44px;padding:2px;background:var(--paper);border:var(--bd);border-radius:10px;cursor:pointer}
+.colorrow code{font:600 .9rem ui-monospace,Menlo,monospace}
+.ghost{background:none;border:none;padding:.2rem 0;color:var(--warn);font:600 .85rem var(--body);text-decoration:underline;cursor:pointer}
+.ghost[hidden]{display:none}
+.prev{display:flex;gap:.9rem;align-items:flex-end;flex-wrap:wrap}
+.prev figure{display:grid;gap:.35rem;justify-items:center}
+.prev figcaption{font-size:.75rem;color:var(--dim)}
+.p-icon,.p-splash{background:var(--tc,#fff);border:var(--bd);display:grid;place-items:center;overflow:hidden;position:relative}
+.p-icon{width:72px;height:72px;border-radius:22px}
+.p-splash{width:58px;height:104px;border-radius:10px}
+.p-splash::before{content:"";position:absolute;left:0;right:0;top:0;height:7px;background:rgba(0,0,0,.16)}
+.p-icon img{width:78%;height:78%;object-fit:contain}
+.p-splash img{width:56%;height:auto;max-height:40%;object-fit:contain}
+.p-icon i,.p-splash i{width:44%;aspect-ratio:1;border:2px dashed rgba(29,19,64,.35);border-radius:50%}
+.p-icon img[hidden],.p-splash img[hidden]{display:none}
+.p-icon:has(img:not([hidden])) i,.p-splash:has(img:not([hidden])) i{display:none}
+
 .go{
   justify-self:start;padding:.95rem 1.7rem;cursor:pointer;
   background:var(--pink);color:var(--ink);font:800 1.1rem var(--display);letter-spacing:-.005em;
@@ -174,7 +205,7 @@ footer .copy{color:var(--ink);font-weight:600}
             <path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/>
           </svg>
           <strong id="dropTitle">Taruh file .zip di sini</strong>
-          <small id="dropSub">atau ketuk untuk memilih. Maksimal 3 MB</small>
+          <small id="dropSub">atau ketuk untuk memilih. Maksimal 2,5 MB</small>
         </label>
 
         <label class="f" id="linkField" hidden>
@@ -187,6 +218,36 @@ footer .copy{color:var(--ink);font-weight:600}
           <label class="f"><span id="nameLbl">Nama aplikasi</span><input id="appName" placeholder="Toko Saya" maxlength="40"></label>
           <label class="f"><span>Package id</span><input id="appId" placeholder="com.tokosaya.app" spellcheck="false" autocapitalize="none"></label>
         </div>
+
+        <fieldset class="look" id="look">
+          <legend>Logo dan splash <em>(opsional)</em></legend>
+          <div class="look-grid">
+            <div class="look-in">
+              <div class="f">
+                <span>Logo aplikasi (ikon di layar HP)</span>
+                <label class="logo-pick">
+                  <input type="file" id="logo" accept="image/png,image/jpeg,image/webp" aria-label="Pilih logo aplikasi">
+                  <span class="lp-btn" id="logoBtn">Pilih logo</span>
+                  <small id="logoSub">Gambar persegi, PNG transparan paling bagus</small>
+                </label>
+                <button type="button" class="ghost" id="logoClear" hidden>Hapus logo</button>
+              </div>
+              <div class="f">
+                <span>Warna splash screen</span>
+                <div class="colorrow">
+                  <input type="color" id="theme" value="#6C3CE9" aria-label="Warna splash screen">
+                  <code id="themeHex">Bawaan</code>
+                  <button type="button" class="ghost" id="themeReset" hidden>Pakai bawaan</button>
+                </div>
+                <small class="hint">Jadi warna latar splash saat aplikasi dibuka, plus status bar di bagian paling atas. Logo tampil di tengah splash.</small>
+              </div>
+            </div>
+            <div class="prev" aria-hidden="true">
+              <figure><div class="p-icon" id="pIcon"><img id="pIconImg" alt="" hidden><i></i></div><figcaption>Ikon</figcaption></figure>
+              <figure><div class="p-splash" id="pSplash"><img id="pSplashImg" alt="" hidden><i></i></div><figcaption>Splash</figcaption></figure>
+            </div>
+          </div>
+        </fieldset>
 
         <button class="go" id="go" type="submit">Build APK</button>
         <p class="hint" id="limitNote">Batas 1 build per hari untuk setiap pengguna.</p>
@@ -212,9 +273,10 @@ footer .copy{color:var(--ink);font-weight:600}
 
 <script>
 const $ = (s) => document.querySelector(s);
-const MAX = 3 * 1024 * 1024;
+const MAX = 2.5 * 1024 * 1024;
 const steps = [...document.querySelectorAll('#line .st')];
 let file = null, timer = null, busy = false;
+let logoB64 = null, themeOn = false;
 
 /* ---------- util ---------- */
 function say(text, kind = '', html = false){
@@ -252,7 +314,7 @@ function toBase64(f){
 function pick(f){
   if (!f) return;
   if (!/\.zip$/i.test(f.name)) return say('File harus berformat .zip.', 'err');
-  if (f.size > MAX) return say(`Zip ${mb(f.size)} terlalu besar. Hapus folder build, .gradle, dan node_modules lalu zip ulang (maks 3 MB).`, 'err');
+  if (f.size > MAX) return say(`Zip ${mb(f.size)} terlalu besar. Hapus folder build, .gradle, dan node_modules lalu zip ulang (maks 2,5 MB).`, 'err');
   file = f; say('');
   $('#dropTitle').textContent = f.name;
   $('#dropTitle').className = 'picked';
@@ -270,11 +332,63 @@ function applyMode(){
   $('#drop').hidden = m === 'link';
   $('#linkField').hidden = m !== 'link';
   $('#webFields').classList.toggle('show', m !== 'android');
+  $('#look').hidden = m === 'android';
   steps[0].querySelector('b').textContent = m === 'link' ? 'Mengirim link' : 'Mengirim zip';
   steps[0].querySelector('small').textContent = m === 'link' ? 'Link dikirim ke repo GitHub' : 'File dikirim ke repo GitHub';
   say('');
 }
 document.querySelectorAll('input[name=type]').forEach(r => r.addEventListener('change', applyMode));
+
+/* ---------- logo & warna splash ---------- */
+function paintPreview(){
+  const c = themeOn ? $('#theme').value : '#FFFFFF';
+  ['#pIcon', '#pSplash'].forEach(q => $(q).style.setProperty('--tc', c));
+  const src = logoB64 ? 'data:image/png;base64,' + logoB64 : '';
+  ['#pIconImg', '#pSplashImg'].forEach(q => { const i = $(q); i.hidden = !src; if (src) i.src = src; });
+  $('#themeHex').textContent = themeOn ? c.toUpperCase() : 'Bawaan';
+  $('#themeReset').hidden = !themeOn;
+  $('#logoClear').hidden = !logoB64;
+}
+$('#theme').addEventListener('input', () => { themeOn = true; paintPreview(); });
+$('#themeReset').addEventListener('click', () => { themeOn = false; paintPreview(); });
+$('#logoClear').addEventListener('click', () => {
+  logoB64 = null; $('#logo').value = '';
+  $('#logoBtn').textContent = 'Pilih logo';
+  $('#logoSub').textContent = 'Gambar persegi, PNG transparan paling bagus';
+  paintPreview();
+});
+// logo diperkecil jadi PNG max 512 px di browser, supaya ringan dikirim
+async function pickLogo(f){
+  if (!f) return;
+  if (!/^image\/(png|jpeg|webp)$/.test(f.type)) return say('Logo harus PNG, JPG, atau WebP.', 'err');
+  if (f.size > 8 * 1024 * 1024) return say('Gambar logo terlalu besar (maks 8 MB).', 'err');
+  try {
+    const url = URL.createObjectURL(f);
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('Gambar logo tidak bisa dibaca.'));
+      i.src = url;
+    });
+    URL.revokeObjectURL(url);
+    let out = null;
+    for (const size of [512, 384, 256]){
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const k = Math.min(size / img.width, size / img.height);
+      const w = img.width * k, h = img.height * k;
+      c.getContext('2d').drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      if (blob && blob.size <= 300 * 1024){ out = await toBase64(blob); break; }
+    }
+    if (!out) throw new Error('Logo terlalu rumit untuk dikecilkan. Coba gambar yang lebih sederhana.');
+    logoB64 = out; say('');
+    $('#logoBtn').textContent = 'Ganti logo';
+    $('#logoSub').textContent = f.name;
+    paintPreview();
+  } catch (err) { say(err.message, 'err'); }
+}
+$('#logo').addEventListener('change', (e) => pickLogo(e.target.files[0]));
+paintPreview();
 
 /* ---------- kirim ---------- */
 $('#form').addEventListener('submit', async (e) => {
@@ -302,6 +416,10 @@ $('#form').addEventListener('submit', async (e) => {
       appName: $('#appName').value.trim(),
       appId: $('#appId').value.trim(),
     };
+    if (type !== 'android'){
+      if (logoB64) body.logoBase64 = logoB64;
+      if (themeOn) body.themeColor = $('#theme').value;
+    }
     const r = await fetch('/api/upload', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
