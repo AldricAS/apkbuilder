@@ -120,6 +120,36 @@ form{margin-top:2rem;display:grid;gap:1.2rem}
 .p-icon img[hidden],.p-splash img[hidden]{display:none}
 .p-icon:has(img:not([hidden])) i,.p-splash:has(img:not([hidden])) i{display:none}
 
+/* ---------- tampilan: fullscreen, splash, orientasi ---------- */
+.disp{display:grid;gap:1rem;border:var(--bd);border-radius:18px;background:var(--paper);padding:1rem 1.1rem 1.2rem;min-width:0}
+.disp[hidden]{display:none}
+.disp legend{font:800 1.05rem var(--display);padding:0 .5rem;margin-left:-.3rem;background:var(--mint);border:var(--bd);border-radius:8px}
+.tg{position:relative;display:grid;grid-template-columns:auto 1fr;gap:.2rem .8rem;align-items:center;cursor:pointer}
+.tg input{position:absolute;opacity:0;width:100%;height:100%;inset:0;cursor:pointer;margin:0}
+.tg .sw{grid-row:span 2;width:46px;height:26px;border:var(--bd);border-radius:99px;background:#D9D2F2;position:relative;transition:background .12s}
+.tg .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--paper);border:2px solid var(--ink);transition:transform .12s}
+.tg input:checked ~ .sw{background:var(--mint)}
+.tg input:checked ~ .sw::after{transform:translateX(20px)}
+.tg input:focus-visible ~ .sw{outline:3px solid var(--ink);outline-offset:3px}
+.tg b{font:600 1rem var(--body)}
+.tg small{color:var(--dim);font-size:.82rem;grid-column:2}
+.ori{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.ori input{position:absolute;opacity:0;pointer-events:none}
+.ori label{
+  display:grid;justify-items:center;gap:.35rem;padding:.7rem .4rem;cursor:pointer;text-align:center;background:var(--paper);
+  border:var(--bd);border-radius:12px;box-shadow:3px 3px 0 var(--ink);transition:transform .08s,box-shadow .08s;
+}
+.ori label b{font:600 .92rem var(--body)}
+.ori .ph{display:block;border:2px solid var(--ink);border-radius:4px;background:var(--bg)}
+.ori .ph.p{width:14px;height:24px}
+.ori .ph.l{width:24px;height:14px}
+.ori .ph.a{width:22px;height:22px;border-radius:50%;border-style:dashed}
+.ori input:checked + label{background:var(--sun);transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.ori input:focus-visible + label{outline:3px solid var(--ink);outline-offset:3px}
+.ori-t{font-size:.88rem;color:var(--dim);font-weight:500}
+@media (max-width:420px){.ori{grid-template-columns:1fr}}
+.prev figure.off{opacity:.4}
+
 .go{
   justify-self:start;padding:.95rem 1.7rem;cursor:pointer;
   background:var(--pink);color:var(--ink);font:800 1.1rem var(--display);letter-spacing:-.005em;
@@ -249,6 +279,34 @@ footer .copy{color:var(--ink);font-weight:600}
           </div>
         </fieldset>
 
+        <fieldset class="disp" id="disp">
+          <legend>Tampilan aplikasi <em style="font:500 .8rem var(--body);font-style:normal">(opsional)</em></legend>
+          <label class="tg">
+            <input type="checkbox" id="fullscreen">
+            <span class="sw" aria-hidden="true"></span>
+            <b>Fullscreen</b>
+            <small>Status bar dan tombol navigasi disembunyikan. Muncul sebentar kalau pengguna geser dari tepi layar.</small>
+          </label>
+          <label class="tg">
+            <input type="checkbox" id="noSplash">
+            <span class="sw" aria-hidden="true"></span>
+            <b>Tanpa splash screen</b>
+            <small>Tidak ada logo atau gambar saat dibuka, langsung masuk ke aplikasi.</small>
+          </label>
+          <div role="radiogroup" aria-labelledby="oriT" style="display:grid;gap:.5rem">
+            <span class="ori-t" id="oriT">Orientasi layar</span>
+            <div class="ori">
+              <input type="radio" name="ori" id="o-auto" value="auto" checked>
+              <label for="o-auto"><i class="ph a"></i><b>Otomatis</b></label>
+              <input type="radio" name="ori" id="o-portrait" value="portrait">
+              <label for="o-portrait"><i class="ph p"></i><b>Portrait</b></label>
+              <input type="radio" name="ori" id="o-landscape" value="landscape">
+              <label for="o-landscape"><i class="ph l"></i><b>Landscape</b></label>
+            </div>
+            <small class="hint" id="oriHint">Otomatis mengikuti posisi HP dan pengaturan putar layar di HP pengguna.</small>
+          </div>
+        </fieldset>
+
         <button class="go" id="go" type="submit">Build APK</button>
         <p class="hint" id="limitNote">Batas 1 build per hari untuk setiap pengguna.</p>
         <p id="msg" role="status" aria-live="polite"></p>
@@ -333,6 +391,7 @@ function applyMode(){
   $('#linkField').hidden = m !== 'link';
   $('#webFields').classList.toggle('show', m !== 'android');
   $('#look').hidden = m === 'android';
+  $('#disp').hidden = m === 'android';
   steps[0].querySelector('b').textContent = m === 'link' ? 'Mengirim link' : 'Mengirim zip';
   steps[0].querySelector('small').textContent = m === 'link' ? 'Link dikirim ke repo GitHub' : 'File dikirim ke repo GitHub';
   say('');
@@ -390,6 +449,23 @@ async function pickLogo(f){
 $('#logo').addEventListener('change', (e) => pickLogo(e.target.files[0]));
 paintPreview();
 
+/* ---------- tampilan: fullscreen, splash, orientasi ---------- */
+const ORI_HINT = {
+  auto: 'Otomatis mengikuti posisi HP dan pengaturan putar layar di HP pengguna.',
+  portrait: 'Terkunci tegak, tidak ikut berputar walau HP dimiringkan.',
+  landscape: 'Terkunci mendatar, cocok untuk game atau dashboard lebar.',
+};
+const orientation = () => (document.querySelector('input[name=ori]:checked') || {}).value || 'auto';
+function paintDisp(){
+  const off = $('#noSplash').checked;
+  $('#pSplash').closest('figure').classList.toggle('off', off);
+  $('#pSplash').closest('figure').querySelector('figcaption').textContent = off ? 'Splash (mati)' : 'Splash';
+  $('#oriHint').textContent = ORI_HINT[orientation()];
+}
+$('#noSplash').addEventListener('change', paintDisp);
+document.querySelectorAll('input[name=ori]').forEach(r => r.addEventListener('change', paintDisp));
+paintDisp();
+
 /* ---------- kirim ---------- */
 $('#form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -419,6 +495,9 @@ $('#form').addEventListener('submit', async (e) => {
     if (type !== 'android'){
       if (logoB64) body.logoBase64 = logoB64;
       if (themeOn) body.themeColor = $('#theme').value;
+      body.fullscreen = $('#fullscreen').checked;
+      body.noSplash = $('#noSplash').checked;
+      body.orientation = orientation();
     }
     const r = await fetch('/api/upload', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
