@@ -7,6 +7,7 @@ const NAME_RE = /^[A-Za-z0-9 _-]{1,40}$/;
 const PKG_RE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
 const COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
 const MAX_LOGO_B64 = 600_000; // sekitar 450 KB, logo sudah diperkecil di browser
+const ORIENTATIONS = ['auto', 'portrait', 'landscape'];
 const SAFE_URL_RE = /^https:\/\/[^\s'"`$\\<>|;&(){}]+$/;
 
 async function ensureBranch() {
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
   if (!process.env.GH_REPO || !process.env.GH_TOKEN)
     return res.status(500).json({ error: 'GH_REPO / GH_TOKEN belum diisi di Vercel.' });
 
-  const { contentBase64, type, url, appName, appId, logoBase64, themeColor } = req.body || {};
+  const { contentBase64, type, url, appName, appId, logoBase64, themeColor, fullscreen, noSplash, orientation } = req.body || {};
 
   if (!['android', 'web', 'link'].includes(type))
     return res.status(400).json({ error: 'Tipe proyek tidak valid.' });
@@ -69,6 +70,19 @@ export default async function handler(req, res) {
     }
   }
 
+  // opsi tampilan (fullscreen, tanpa splash, orientasi) juga hanya untuk mode web dan link
+  let fs = false;
+  let ns = false;
+  let orient = 'auto';
+  if (type !== 'android') {
+    fs = fullscreen === true;
+    ns = noSplash === true;
+    if (orientation !== undefined && orientation !== null && orientation !== '') {
+      if (!ORIENTATIONS.includes(orientation)) return res.status(400).json({ error: 'Orientasi tidak valid.' });
+      orient = orientation;
+    }
+  }
+
   try {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const meta = {
@@ -78,6 +92,9 @@ export default async function handler(req, res) {
       appId: appId || 'com.example.app',
       themeColor: theme,
       hasLogo: !!logo,
+      fullscreen: fs,
+      noSplash: ns,
+      orientation: orient,
     };
 
     await ensureBranch();
