@@ -52,7 +52,7 @@ jobs:
           GW=$(find src -name gradlew -not -path '*/node_modules/*' | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)
           IDX=$(find src -name index.html -not -path '*/node_modules/*' | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)
           if [ -n "$GW" ]; then
-            { echo "type=android"; echo "java=17"; echo "root=$(dirname "$GW")"; } >> "$GITHUB_OUTPUT"
+            { echo "type=android"; echo "java=21"; echo "root=$(dirname "$GW")"; } >> "$GITHUB_OUTPUT"
           elif [ -n "$IDX" ]; then
             { echo "type=web"; echo "java=21"; echo "root=$(dirname "$IDX")"; } >> "$GITHUB_OUTPUT"
           else
@@ -68,6 +68,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Pasang dependensi Capacitor (proyek Android)
+        if: steps.src.outputs.type == 'android'
+        env:
+          ROOT: ${{ steps.src.outputs.root }}
+        run: |
+          PROJ="$(dirname "$ROOT")"
+          echo "Folder proyek npm: $PROJ"
+          [ -f "$PROJ/package.json" ] \
+            || { echo "::error::package.json tidak ditemukan di $PROJ"; exit 1; }
+          cd "$PROJ"
+          npm install --no-audit --no-fund
+          npx cap sync android
+          [ -f node_modules/@capacitor/android/capacitor/build.gradle ] \
+            || { echo "::error::node_modules/@capacitor/android tidak terpasang"; exit 1; }
+          ls node_modules/@capacitor
 
       - name: Build proyek Android (Gradle)
         if: steps.src.outputs.type == 'android'
