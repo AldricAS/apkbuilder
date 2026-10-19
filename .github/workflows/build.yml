@@ -69,18 +69,24 @@ jobs:
         with:
           node-version: 22
 
+      # DIPERBAIKI: hanya jalan untuk proyek Capacitor (ada package.json berisi @capacitor/cli).
+      # Proyek Android native murni dilewati dan langsung lanjut ke build Gradle.
       - name: Pasang dependensi Capacitor (proyek Android)
         if: steps.src.outputs.type == 'android'
         env:
           ROOT: ${{ steps.src.outputs.root }}
         run: |
           PROJ="$(dirname "$ROOT")"
-          if [ -f "$PROJ/package.json" ]; then
+          if [ -f "$PROJ/package.json" ] && grep -q '"@capacitor/cli"' "$PROJ/package.json"; then
+            echo "Folder proyek npm: $PROJ"
             cd "$PROJ"
-            npm ci || npm install
+            npm install --no-audit --no-fund
             npx cap sync android
+            [ -f node_modules/@capacitor/android/capacitor/build.gradle ] \
+              || { echo "::error::node_modules/@capacitor/android tidak terpasang"; exit 1; }
+            ls node_modules/@capacitor
           else
-            echo "::warning::package.json tidak ditemukan di $PROJ, lewati npm install"
+            echo "Proyek Android native (bukan Capacitor), langkah dilewati."
           fi
 
       - name: Build proyek Android (Gradle)
