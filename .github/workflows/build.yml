@@ -31,6 +31,8 @@ jobs:
             echo "app_id=$(jq -r '.appId' "$META")"
             echo "theme=$(jq -r '.themeColor // ""' "$META")"
             echo "has_logo=$(jq -r '.hasLogo // false' "$META")"
+            echo "parts=$(jq -r '.parts // 0' "$META")"
+            echo "zip_size=$(jq -r '.zipSize // 0' "$META")"
           } >> "$GITHUB_OUTPUT"
 
       - name: Ambil proyek dan deteksi jenisnya
@@ -39,12 +41,22 @@ jobs:
           ID: ${{ steps.prep.outputs.id }}
           MTYPE: ${{ steps.prep.outputs.mtype }}
           URL: ${{ steps.prep.outputs.url }}
+          PARTS: ${{ steps.prep.outputs.parts }}
+          ZIP_SIZE: ${{ steps.prep.outputs.zip_size }}
         run: |
           if [ "$MTYPE" = "link" ]; then
             { echo "type=weblink"; echo "java=21"; echo "root=."; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          cp "uploads/$ID.zip" src.zip
+          if [ -f "uploads/$ID.zip" ]; then
+            cp "uploads/$ID.zip" src.zip
+          else
+            # zip dikirim per potongan (.part000, .part001, ...), gabungkan lagi urut sesuai nama
+            [ "$PARTS" -gt 0 ] || { echo "::error::Potongan zip tidak ditemukan"; exit 1; }
+            cat uploads/"$ID".part* > src.zip
+            [ "$(stat -c%s src.zip)" = "$ZIP_SIZE" ] \
+              || { echo "::error::Ukuran zip hasil gabungan tidak cocok, ada potongan yang hilang"; exit 1; }
+          fi
           unzip -tq src.zip > /dev/null \
             || { echo "::error::File bukan zip yang valid"; exit 1; }
           mkdir -p src && unzip -q src.zip -d src
@@ -253,8 +265,9 @@ jobs:
           if [ -n "$ID" ]; then
             git config user.name "apkforge-bot"
             git config user.email "apkforge-bot@users.noreply.github.com"
-            git rm -q --ignore-unmatch "uploads/$ID.zip" "uploads/$ID.png" "uploads/$ID.json"
+            git rm -q --ignore-unmatch "uploads/$ID.zip" "uploads/$ID.png" "uploads/$ID.json" "uploads/$ID.part*"
             git commit -m "cleanup $ID" || true
             git pull --rebase origin builds || true
             git push origin builds || true
           fi
+          
