@@ -205,7 +205,7 @@ footer .copy{color:var(--ink);font-weight:600}
             <path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/>
           </svg>
           <strong id="dropTitle">Taruh file .zip di sini</strong>
-          <small id="dropSub">atau ketuk untuk memilih. Maksimal 2,5 MB</small>
+          <small id="dropSub">atau ketuk untuk memilih. Maksimal 25 MB</small>
         </label>
 
         <label class="f" id="linkField" hidden>
@@ -219,7 +219,7 @@ footer .copy{color:var(--ink);font-weight:600}
           <label class="f"><span>Package id</span><input id="appId" placeholder="com.tokosaya.app" spellcheck="false" autocapitalize="none"></label>
         </div>
 
-        <fieldset class="look" id="look">
+        <fieldset class="look" id="look" hidden>
           <legend>Logo dan splash <em>(opsional)</em></legend>
           <div class="look-grid">
             <div class="look-in">
@@ -273,7 +273,8 @@ footer .copy{color:var(--ink);font-weight:600}
 
 <script>
 const $ = (s) => document.querySelector(s);
-const MAX = 2.5 * 1024 * 1024;
+const MAX = 25 * 1024 * 1024;   // batas zip: 25 MB
+const CHUNK = 3 * 1024 * 1024;   // zip dikirim per potongan 3 MB (batas body Vercel 4,5 MB)
 const steps = [...document.querySelectorAll('#line .st')];
 let file = null, timer = null, busy = false;
 let logoB64 = null, themeOn = false;
@@ -314,7 +315,7 @@ function toBase64(f){
 function pick(f){
   if (!f) return;
   if (!/\.zip$/i.test(f.name)) return say('File harus berformat .zip.', 'err');
-  if (f.size > MAX) return say(`Zip ${mb(f.size)} terlalu besar. Hapus folder build, .gradle, dan node_modules lalu zip ulang (maks 2,5 MB).`, 'err');
+  if (f.size > MAX) return say(`Zip ${mb(f.size)} terlalu besar. Hapus folder build, .gradle, dan node_modules lalu zip ulang (maks 25 MB).`, 'err');
   file = f; say('');
   $('#dropTitle').textContent = f.name;
   $('#dropTitle').className = 'picked';
@@ -389,6 +390,42 @@ async function pickLogo(f){
 }
 $('#logo').addEventListener('change', (e) => pickLogo(e.target.files[0]));
 paintPreview();
+applyMode(); // sesuaikan tampilan form dengan jenis proyek yang terpilih saat halaman dibuka
+
+/* ---------- kirim zip per potongan ---------- */
+async function sendChunk(blob, first){
+  let err;
+  for (let t = 0; t < 3; t++){
+    try {
+      const r = await fetch('/api/chunk' + (first ? '?first=1' : ''), {
+        method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.sha) return d.sha;
+      err = new Error(d.error || `Upload gagal (${r.status}).`);
+      if (r.status >= 400 && r.status < 500 && r.status !== 429){ err.fatal = true; throw err; }
+    } catch (e) { err = e; if (e.fatal) throw e; }
+    await new Promise(r => setTimeout(r, 1200 * (t + 1)));
+  }
+  throw err;
+}
+async function uploadParts(f, onProgress){
+  const n = Math.ceil(f.size / CHUNK);
+  const shas = new Array(n);
+  let next = 0, done = 0, failed = false;
+  const worker = async () => {
+    while (!failed){
+      const i = next++;
+      if (i >= n) return;
+      try {
+        shas[i] = await sendChunk(f.slice(i * CHUNK, Math.min(f.size, (i + 1) * CHUNK)), i === 0);
+      } catch (e) { failed = true; throw e; }
+      onProgress(++done / n);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, n) }, worker));
+  return shas;
+}
 
 /* ---------- kirim ---------- */
 $('#form').addEventListener('submit', async (e) => {
@@ -411,7 +448,8 @@ $('#form').addEventListener('submit', async (e) => {
   try {
     const body = {
       type,
-      contentBase64: type === 'link' ? undefined : await toBase64(file),
+      parts: type === 'link' ? undefined : await uploadParts(file, (p) => say(`Mengirim zip ke GitHub... ${Math.round(p * 100)}%`)),
+      size: type === 'link' ? undefined : file.size,
       url: $('#url').value.trim(),
       appName: $('#appName').value.trim(),
       appId: $('#appId').value.trim(),
